@@ -7,31 +7,28 @@
 #include <string>
 #include <fstream>
 #include <list>
+#include <gflags/gflags.h>
 #include "segment.h"
+
+
+DEFINE_string(input_file, "C:\\section_segmentation\\data\\evorus.png", "Image input file");
+DEFINE_string(output_dir, "C:\\section_segmentation\\data\\", "Where to store output files");
+DEFINE_int32(erode_dilate_count, 0, "# of times to erode and dilate");
+DEFINE_int32(dilate_size, 4, "Size of dilation kernel");
+DEFINE_int32(binarize_threshold, 200, "Threshold used to binarize the image");
+DEFINE_bool(merge_by_paragraph, true, "Merge nearby lines and detect when a paragraph ends");
+DEFINE_bool(show_merged, false, "Show where merging happened via merge_by_paragraph on the green output");
+DEFINE_bool(verbose, true, "Output verbose logging");
+DEFINE_bool(debug, true, "Show some output images");
+
 using namespace cv;
 using namespace std;
-void min_pix2(Mat& in, Mat& out, int threshold = 200) {
+
+void binarize(Mat& in, Mat& out, int threshold = 200) {
     // input is RGB
     // output is grayscale min(R,G,B)
-    auto indata = (const uint8_t*)in.data;
-    auto outdata = (uint8_t*)out.data;
-    int h = in.rows;
-    int w = in.cols;
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            outdata[x] = indata[2 * x+1];
-            if (outdata[x] > threshold)
-                outdata[x] = 0;
-            else
-                outdata[x] = 255;
-        }
-        indata += w * 2;
-        outdata += w;
-    }
-}
-void min_pix(Mat& in, Mat& out, int threshold = 200) {
-    // input is RGB
-    // output is grayscale min(R,G,B)
+    // anything above threshold is set to 0
+    // anything below threshold is set to 255
     auto indata = (const uint8_t*)in.data;
     auto outdata = (uint8_t*)out.data;
     int h = in.rows;
@@ -48,8 +45,6 @@ void min_pix(Mat& in, Mat& out, int threshold = 200) {
         outdata += w;
     }
 }
-
-//void compute_on_density()
 
 list<pair<int,int>> hscan(Mat& in, int x0 = 0, int y0 = 0, int xf = -1, int yf = -1) {
     list<pair<int, int>> result;
@@ -171,6 +166,7 @@ list<pair<int, int>> vscan(Mat& in, int x0 = 0, int y0 = 0, int xf = -1, int yf 
 }
 
 void filter_breaks(list<pair<int, int>>& breaks, int min_size) {
+    // filter out breaks that are < min_size
     auto bi = breaks.begin();
     while (bi != breaks.end()) {
         if (bi->second - bi->first <= min_size) {
@@ -183,7 +179,12 @@ void filter_breaks(list<pair<int, int>>& breaks, int min_size) {
             bi++;
     }
 }
+
 Rect crop_rect(Mat& image, Rect r) {
+    ///
+    // Find the smallest rect around all the data that is entirely inside
+    // rect.
+    ///
     auto data = (uint8_t*)image.data;
     data += r.y * image.cols;
     int minx = r.x + r.width;
@@ -204,7 +205,11 @@ Rect crop_rect(Mat& image, Rect r) {
     return Rect(minx, miny, maxx - minx, maxy - miny);
 }
 
-list<Rect> vprocess(const list<Rect>& inlist, Mat& in, Mat& green, int min_break_size, bool merge_by_paragraph = false, int paragraph_overide_threshold = 10, int justify_threshold=10, bool draw_red=false) {
+list<Rect> vprocess(const list<Rect>& inlist, Mat& in, Mat& green, int min_break_size, 
+    bool merge_by_paragraph = false,
+    int paragraph_overide_threshold = 10, 
+    int justify_threshold = 10, 
+    bool draw_red = false) {
     list<Rect> result;
     for (auto i = inlist.begin(); i != inlist.end(); i++) {
         list<pair<int, int>> hbreaks = vscan(in, i->x, i->y, i->x + i->width, i->y + i->height);
@@ -300,14 +305,10 @@ list<Rect> hprocess(const list<Rect>& inlist, Mat& in, Mat& green, int min_break
 
 int main(int argc, char** argv)
 {
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
     auto begin = chrono::high_resolution_clock::now();
-//    string input_file = "C:\\section_segmentation\\data\\dlpaper.jpeg";
-    string input_file = "C:\\section_segmentation\\data\\evorus.png";
-    string output_dir = "C:\\section_segmentation\\data\\";
-    if ((argc == 2) && (string(argv[1]) == "-h")) {
-        cout << "Usage: " << argv[0] << " <input-file> [<output-dir>]" << endl;
-        cout << "If [<output-dir>] is left empty, output is the current directory." << endl;
-    }
+    string input_file = FLAGS_input_file;
+    string output_dir = FLAGS_output_dir;
 
     if (argc >= 2)
         input_file = argv[1];
@@ -331,46 +332,58 @@ int main(int argc, char** argv)
     image.copyTo(green);
     minrgb.create(image.rows, image.cols, CV_8UC1);
 
-    min_pix(image, minrgb);
+    binarize(image, minrgb, FLAGS_binarize_threshold);
 
-    int dilation_size = 4;
+
+    // dilate and erode to merge nearby componenta
+    int dilation_size = FLAGS_dilate_size;
     Mat element = getStructuringElement(MORPH_ELLIPSE,
         Size(2 * MORPH_ELLIPSE + 1, 2 * dilation_size + 1),
         Point(dilation_size, dilation_size));
     
-    for (int i = 0; i < 0; i++) 
+    for (int i = 0; i < FLAGS_erode_dilate_count; i++)
     {
         dilate(minrgb, minrgb, element);
         erode(minrgb, minrgb, element);
     }
+
     Rect entire_image = Rect(Point(0, 0), Point(image.cols, image.rows));
     list<Rect> cur_rects = { entire_image };
+
+    // vertical scan, horizontal scan, then vertical scan again
     cur_rects = vprocess(cur_rects, minrgb, green, 15);
     cur_rects = hprocess(cur_rects, minrgb, green, 15);
-    cur_rects = vprocess(cur_rects, minrgb, green, 0, true, 8, 5, false);
+    cur_rects = vprocess(cur_rects, minrgb, green, 0, FLAGS_merge_by_paragraph, 8, 5, FLAGS_show_merged);
 
+
+    // save output
     string green_file = input_file.substr(0, input_file.length() - 4) + ".green.png";
     imwrite(green_file, green);
     int region_index = 0;
     for (Rect ri : cur_rects) {
         char filename[128];
-        sprintf(filename, "%s%04d.jpg", output_dir.c_str(), region_index++);
+        sprintf(filename, "%s%04d.png", output_dir.c_str(), region_index++);
         Mat imgRgn = image(ri);
         imwrite(filename, imgRgn);
     }
 
 
     auto end = std::chrono::high_resolution_clock::now();
-//    cout << "Generated " << region_index << " regions" << endl;
-    cout << "Total run time: " << chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count()/ 1000000 << "ms" << std::endl;
-    
-    namedWindow("Display window", WINDOW_AUTOSIZE);// Create a window for display.
-    imshow("Display window", bgra[2]);                   // Show our image inside it.
-                                                        
-    namedWindow("Display window2", WINDOW_AUTOSIZE);// Create a window for display.
-    imshow("Display window2", bgra[0]);                   // Show our image inside it.
 
-    waitKey(0);                                          // Wait for a keystroke in the window
-  
+    if (FLAGS_verbose) {
+        cout << "Generated " << region_index << " regions" << endl;
+        cout << "Total run time: " << chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count() / 1000000 << "ms" << std::endl;
+    }
+    
+    if (FLAGS_debug) {
+        namedWindow("Display window", WINDOW_AUTOSIZE);
+        imshow("Display window", bgra[2]);
+
+        namedWindow("Display window2", WINDOW_AUTOSIZE);
+        imshow("Display window2", bgra[0]);
+
+        cout << "Press any key to exit..." << endl;
+        waitKey(0);                                    
+    }
     return 0;
 }
