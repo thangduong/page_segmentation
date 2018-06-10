@@ -11,7 +11,7 @@
 #include "segment.h"
 
 
-DEFINE_string(input_file, "C:\\section_segmentation\\data\\evorus.png", "Image input file");
+DEFINE_string(input_file, "C:\\section_segmentation\\data\\evorus-0000.png", "Image input file");
 DEFINE_string(output_dir, "C:\\section_segmentation\\data\\", "Where to store output files");
 DEFINE_int32(erode_dilate_count, 0, "# of times to erode and dilate");
 DEFINE_int32(dilate_size, 4, "Size of dilation kernel");
@@ -360,12 +360,15 @@ int main(int argc, char** argv)
     string green_file = input_file.substr(0, input_file.length() - 4) + ".green.png";
     imwrite(green_file, green);
     int region_index = 0;
+    ofstream coordinates_file(output_dir + "coordinates.txt");
     for (Rect ri : cur_rects) {
         char filename[128];
+        coordinates_file << region_index << " " << ri.x << " " << ri.y << " " << ri.width << " " << ri.height << endl;
         sprintf(filename, "%s%04d.png", output_dir.c_str(), region_index++);
         Mat imgRgn = image(ri);
         imwrite(filename, imgRgn);
     }
+    coordinates_file.close();
 
 
     auto end = std::chrono::high_resolution_clock::now();
