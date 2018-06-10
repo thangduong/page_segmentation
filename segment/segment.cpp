@@ -19,7 +19,7 @@ DEFINE_int32(binarize_threshold, 200, "Threshold used to binarize the image");
 DEFINE_bool(merge_by_paragraph, true, "Merge nearby lines and detect when a paragraph ends");
 DEFINE_bool(show_merged, false, "Show where merging happened via merge_by_paragraph on the green output");
 DEFINE_bool(verbose, true, "Output verbose logging");
-DEFINE_bool(debug, true, "Show some output images");
+DEFINE_bool(debug, false, "Show some output images");
 
 using namespace cv;
 using namespace std;
