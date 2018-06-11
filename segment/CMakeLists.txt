@@ -33,8 +33,8 @@ target_link_libraries(segment gflags)
 #target_link_libraries(segment glog)
 if (UNIX)
 set_target_properties(segment PROPERTIES
-                      RUNTIME_OUTPUT_DIRECTORY_DEBUG ../bin/Linux64/
-                      RUNTIME_OUTPUT_DIRECTORY_RELEASE ../bin/Linux64/)
+                      RUNTIME_OUTPUT_DIRECTORY_DEBUG ../bin/linux64/
+                      RUNTIME_OUTPUT_DIRECTORY_RELEASE ../bin/linux64/)
 endif (UNIX)
 if (WIN32)
 set_target_properties(segment PROPERTIES
