@@ -344,10 +344,6 @@ int main(int argc, char** argv)
     string input_file = FLAGS_input_file;
     string output_dir = FLAGS_output_dir;
 
-    if (argc >= 2)
-        input_file = argv[1];
-    if (argc >= 3)
-        output_dir = argv[2];
     cout << "Loading: " << input_file << endl;
     cout << "Output dir: " << output_dir << endl;
 
