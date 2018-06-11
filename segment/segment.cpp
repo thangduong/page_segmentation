@@ -60,9 +60,9 @@ void binarize(Mat& in, Mat& out, int threshold = 200) {
                 int b = indata[4 * x + 2];
                 int a = indata[4 * x + 3];
                 float alpha = ((float)a) / 255.0f;
-                r = r*alpha + 255 * (1 - alpha);
-                g = g*alpha + 255 * (1 - alpha);
-                b = b*alpha + 255 * (1 - alpha);
+                r = (int)(r*alpha + 255 * (1 - alpha));
+                g = (int)(g*alpha + 255 * (1 - alpha));
+                b = (int)(b*alpha + 255 * (1 - alpha));
                 outdata[x] = min(min(r,g),b);
                 if (outdata[x] > threshold)
                     outdata[x] = 0;

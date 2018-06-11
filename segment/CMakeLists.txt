@@ -14,9 +14,6 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -O3")
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 project(segment)
 #find_package(OpenCV)
@@ -35,6 +32,9 @@ if (UNIX)
 set_target_properties(segment PROPERTIES
                       RUNTIME_OUTPUT_DIRECTORY_DEBUG ../bin/linux64/
                       RUNTIME_OUTPUT_DIRECTORY_RELEASE ../bin/linux64/)
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -O3")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 endif (UNIX)
 if (WIN32)
 set_target_properties(segment PROPERTIES
