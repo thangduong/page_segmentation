@@ -21,6 +21,7 @@ DEFINE_int32(justify_threshold, 5, "Number of pixels misaligned to count as last
 DEFINE_int32(vp0_min_break_size, 15, "First vertical pass minimum break size.  vp0, hp0, vp1.");
 DEFINE_int32(hp0_min_break_size, 15, "First horizontal pass minimum break size.  vp0, hp0, vp1.");
 DEFINE_int32(vp1_min_break_size, 15, "Second vertical pass minimum break size.  vp0, hp0, vp1.");
+DEFINE_int32(num_stages, 3, "Number of stages to run");
 DEFINE_bool(merge_by_paragraph, true, "Merge nearby lines and detect when a paragraph ends");
 DEFINE_bool(show_merged, false, "Show where merging happened via merge_by_paragraph on the green output");
 DEFINE_bool(verbose, true, "Output verbose logging");
@@ -379,9 +380,19 @@ int main(int argc, char** argv)
     list<Rect> cur_rects = { entire_image };
 
     // vertical scan, horizontal scan, then vertical scan again
-    cur_rects = vprocess(cur_rects, minrgb, green, FLAGS_vp0_min_break_size);
-    cur_rects = hprocess(cur_rects, minrgb, green, FLAGS_hp0_min_break_size);
-    cur_rects = vprocess(cur_rects, minrgb, green, FLAGS_vp1_min_break_size, FLAGS_merge_by_paragraph, FLAGS_paragraph_overide_threshold, FLAGS_justify_threshold, FLAGS_show_merged);
+    int stage = 0;
+    if (stage < FLAGS_num_stages) {
+        cur_rects = vprocess(cur_rects, minrgb, green, FLAGS_vp0_min_break_size);
+        stage += 1;
+    }
+    if (stage < FLAGS_num_stages) {
+        cur_rects = hprocess(cur_rects, minrgb, green, FLAGS_hp0_min_break_size);
+        stage += 1;
+    }
+    if (stage < FLAGS_num_stages) {
+        cur_rects = vprocess(cur_rects, minrgb, green, FLAGS_vp1_min_break_size, FLAGS_merge_by_paragraph, FLAGS_paragraph_overide_threshold, FLAGS_justify_threshold, FLAGS_show_merged);
+        stage += 1;
+    }
 
 
     // save output
