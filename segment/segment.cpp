@@ -11,7 +11,7 @@
 
 
 DEFINE_string(input_file, "C:\\section_segmentation\\data\\evorus-0007.png", "Image input file");
-DEFINE_string(output_dir, "C:\\section_segmentation\\data\\", "Where to store output files");
+DEFINE_string(output_dir, "", "Where to store output files");
 DEFINE_int32(erode_dilate_count, 0, "# of times to erode and dilate");
 DEFINE_int32(dilate_size, 4, "Size of dilation kernel");
 DEFINE_int32(binarize_threshold, 200, "Threshold used to binarize the image");
