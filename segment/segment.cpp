@@ -11,7 +11,7 @@
 #include "segment.h"
 
 
-DEFINE_string(input_file, "C:\\section_segmentation\\data\\evorus-0000.png", "Image input file");
+DEFINE_string(input_file, "C:\\section_segmentation\\data\\evorus-0007.png", "Image input file");
 DEFINE_string(output_dir, "C:\\section_segmentation\\data\\", "Where to store output files");
 DEFINE_int32(erode_dilate_count, 0, "# of times to erode and dilate");
 DEFINE_int32(dilate_size, 4, "Size of dilation kernel");
@@ -29,20 +29,49 @@ void binarize(Mat& in, Mat& out, int threshold = 200) {
     // output is grayscale min(R,G,B)
     // anything above threshold is set to 0
     // anything below threshold is set to 255
-    auto indata = (const uint8_t*)in.data;
+    auto indata = (uint8_t*)in.data;
     auto outdata = (uint8_t*)out.data;
     int h = in.rows;
     int w = in.cols;
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            outdata[x] = min(min(indata[3 * x], indata[3 * x + 1]), indata[3 * x + 2]);
-            if (outdata[x] > threshold)
-                outdata[x] = 0;
-            else
-                outdata[x] = 255;
+    if (in.type() == CV_8UC3) {
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                outdata[x] = min(min(indata[3 * x], indata[3 * x + 1]), indata[3 * x + 2]);
+                if (outdata[x] > threshold)
+                    outdata[x] = 0;
+                else
+                    outdata[x] = 255;
+            }
+            indata += w * 3;
+            outdata += w;
         }
-        indata += w * 3;
-        outdata += w;
+    }
+    else if (in.type() == CV_8UC4) {
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                // NOTE: RGB probably should be BGR.
+                int r = indata[4 * x + 0];
+                int g = indata[4 * x + 1];
+                int b = indata[4 * x + 2];
+                int a = indata[4 * x + 3];
+                float alpha = ((float)a) / 255.0f;
+                r = r*alpha + 255 * (1 - alpha);
+                g = g*alpha + 255 * (1 - alpha);
+                b = b*alpha + 255 * (1 - alpha);
+                outdata[x] = min(min(r,g),b);
+                if (outdata[x] > threshold)
+                    outdata[x] = 0;
+                else
+                    outdata[x] = 255;
+                indata[4 * x + 0] = r;
+                indata[4 * x + 1] = g;
+                indata[4 * x + 2] = b;
+                indata[4 * x + 3] = 0xff;
+            }
+            indata += w * 4;
+            outdata += w;
+        }
+        cvtColor(in, in, CV_BGRA2BGR);
     }
 }
 
@@ -318,9 +347,7 @@ int main(int argc, char** argv)
     cout << "Output dir: " << output_dir << endl;
 
     Mat image;
-    image = imread(input_file, IMREAD_COLOR);   // Read the file
-    Mat bgra[3];   //destination array
-    split(image, bgra);//split source  
+    image = imread(input_file, IMREAD_UNCHANGED);   // Read the file
 
 
     if (!image.data)                              // Check for invalid input
@@ -328,8 +355,8 @@ int main(int argc, char** argv)
         cout << "Could not open or find the image" << std::endl;
         return -1;
     }
-    Mat minrgb, green;
-    image.copyTo(green);
+    Mat minrgb;
+    Mat& green = image;
     minrgb.create(image.rows, image.cols, CV_8UC1);
 
     binarize(image, minrgb, FLAGS_binarize_threshold);
@@ -358,6 +385,8 @@ int main(int argc, char** argv)
 
     // save output
     string green_file = input_file.substr(0, input_file.length() - 4) + ".green.png";
+    if (FLAGS_verbose)
+        cout << "Writing: " << green_file << endl;
     imwrite(green_file, green);
     int region_index = 0;
     ofstream coordinates_file(output_dir + "coordinates.txt");
@@ -366,6 +395,8 @@ int main(int argc, char** argv)
         coordinates_file << region_index << " " << ri.x << " " << ri.y << " " << ri.width << " " << ri.height << endl;
         sprintf(filename, "%s%04d.png", output_dir.c_str(), region_index++);
         Mat imgRgn = image(ri);
+        if (FLAGS_verbose)
+            cout << "Writing: " << filename << endl;
         imwrite(filename, imgRgn);
     }
     coordinates_file.close();
@@ -379,12 +410,14 @@ int main(int argc, char** argv)
     }
     
     if (FLAGS_debug) {
-        namedWindow("Display window", WINDOW_AUTOSIZE);
-        imshow("Display window", bgra[2]);
+        namedWindow("Original", WINDOW_AUTOSIZE);
+        imshow("Original", image);
 
-        namedWindow("Display window2", WINDOW_AUTOSIZE);
-        imshow("Display window2", bgra[0]);
+        namedWindow("MinRGB", WINDOW_AUTOSIZE);
+        imshow("MinRGB", minrgb);
 
+        namedWindow("Green", WINDOW_AUTOSIZE);
+        imshow("Green", green);
         cout << "Press any key to exit..." << endl;
         waitKey(0);                                    
     }
