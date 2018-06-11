@@ -151,7 +151,7 @@ list<pair<int, int>> vscan(Mat& in, int x0 = 0, int y0 = 0, int xf = -1, int yf 
 //    auto lastline = indata;
 
     for (int y = y0; y < yf; y++) {
-        int num_on_count = 0;
+//        int num_on_count = 0;
 //        auto nextline = indata;
         bool blank_line = true;
         for (int x = x0; x < xf; x++) {
@@ -254,7 +254,7 @@ list<Rect> vprocess(const list<Rect>& inlist, Mat& in, Mat& green, int min_break
         pair<int, int> last_pair = pair<int, int>(i->y, i->y);
         Rect r;
 
-        int last_type = -1;
+//        int last_type = -1;
 
         // result in current rect
         list<Rect> current_result;
